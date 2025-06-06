@@ -1,8 +1,9 @@
 <!-- home.component.html -->
 <div class="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 py-12">
+  <p-toast></p-toast>
   <div class="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 space-y-12">
 
-    <!-- Main “Connect / Select Group” Card -->
+    <!-- Main "Connect / Select Group" Card -->
     <p-card class="overflow-hidden rounded-2xl shadow-lg">
       <!-- Header -->
       <ng-template pTemplate="header">
@@ -61,7 +62,7 @@
                 class="w-full rounded-lg border border-gray-300 focus:border-green-500"
                 [showToggleAll]="memberOptions.length > 1"
                 [filter]="true"
-                (onChange)="updatePayerOptions()"
+                (onChange)="updatePayerOptions(); updateFlowType()"
               ></p-multiSelect>
             </div>
           }
@@ -339,12 +340,22 @@
                         <i class="pi pi-user text-white text-xs"></i>
                       </div>
                     </div>
-                    <p-tag
-                      [value]="person.name"
-                      severity="info"
-                      [rounded]="true"
-                      class="mb-3 text-base font-semibold"
-                    ></p-tag>
+                    <div class="flex items-center gap-2 mb-3">
+                      <p-tag
+                        [value]="person.name"
+                        severity="info"
+                        [rounded]="true"
+                        class="text-base font-semibold"
+                      ></p-tag>
+                      @if (person.isNonGroupMember) {
+                        <p-tag
+                          value="Non-Group"
+                          severity="warn"
+                          [rounded]="true"
+                          class="text-xs"
+                        ></p-tag>
+                      }
+                    </div>
                     <div class="bg-white w-full rounded-lg shadow-sm py-3 px-4">
                       <div class="text-xs text-gray-500 mb-1">Total Amount</div>
                       <div class="text-2xl font-bold text-green-600">
@@ -402,8 +413,22 @@
         }
       </div>
 
+      <!-- Add Non-Group Member Button (only in Splitwise flow) -->
+      @if (!isManualFlow) {
+        <div class="w-full max-w-5xl mx-auto mt-6">
+          <p-button
+            label="Add Non-Group Member"
+            icon="pi pi-user-plus"
+            severity="secondary"
+            [outlined]="true"
+            class="w-full"
+            (onClick)="showAddNonGroupMember()"
+          ></p-button>
+        </div>
+      }
+
       <!-- Grand Total Display -->
-      <div class="w-full max-w-5xl mx-auto mt-8 mb-12">
+      <div class="w-full max-w-5xl mx-auto mt-8 mb-6">
         <p-card class="overflow-hidden rounded-2xl shadow-lg">
           <ng-template pTemplate="content">
             <div class="bg-gradient-to-r from-green-600 to-teal-600 px-8 py-6 text-white text-center">
@@ -418,6 +443,20 @@
           </ng-template>
         </p-card>
       </div>
+
+      <!-- Post to Splitwise Button (only in Splitwise flow) -->
+      @if (!isManualFlow && totalBill > 0) {
+        <div class="w-full max-w-5xl mx-auto mb-12">
+          <p-button
+            label="Post to Splitwise"
+            icon="pi pi-send"
+            severity="success"
+            [raised]="true"
+            class="w-full"
+            (onClick)="showPostToSplitwise()"
+          ></p-button>
+        </div>
+      }
     }
 
     <!-- Add Multi Person Item Dialog -->
@@ -504,7 +543,7 @@
             (onClick)="closeMultiPersonItemDialog()"
             [text]="true"
             class="w-full sm:w-auto"
-            label="Cancel"
+            label="Clear"
             severity="secondary"
           ></p-button>
           <p-button
@@ -514,6 +553,137 @@
             icon="pi pi-plus"
             label="Add to Bill"
             severity="success"
+          ></p-button>
+        </div>
+      </ng-template>
+    </p-dialog>
+
+    <!-- Add Non-Group Member Dialog -->
+    <p-dialog
+      [(visible)]="showAddNonGroupMemberDialog"
+      [draggable]="false"
+      [modal]="true"
+      [resizable]="false"
+      [style]="{ width: '90vw', maxWidth: '500px' }"
+      header="👤 Add Non-Group Member"
+      styleClass="rounded-xl"
+    >
+      <div class="px-6 py-4">
+        <label class="block text-sm font-semibold text-gray-700 mb-2">
+          <i class="pi pi-id-card mr-2 text-blue-600"></i> Person Name
+        </label>
+        <input
+          (keyup.enter)="addNonGroupMember()"
+          [(ngModel)]="nonGroupMemberName"
+          class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+          pInputText
+          placeholder="Enter person name"
+          type="text"
+        />
+        <small class="text-gray-500 mt-1 block">
+          This person is not in your Splitwise group
+        </small>
+      </div>
+
+      <ng-template pTemplate="footer">
+        <div class="flex justify-end space-x-3 px-6 py-4">
+          <p-button
+            (onClick)="closeAddNonGroupMemberDialog()"
+            [text]="true"
+            label="Cancel"
+            severity="secondary"
+          ></p-button>
+          <p-button
+            (onClick)="addNonGroupMember()"
+            [disabled]="!nonGroupMemberName.trim()"
+            icon="pi pi-plus"
+            label="Add Person"
+            severity="success"
+          ></p-button>
+        </div>
+      </ng-template>
+    </p-dialog>
+
+    <!-- Expense Description Dialog -->
+    <p-dialog
+      [(visible)]="showDescriptionDialog"
+      [draggable]="false"
+      [modal]="true"
+      [resizable]="false"
+      [style]="{ width: '90vw', maxWidth: '500px' }"
+      header="📝 Expense Description"
+      styleClass="rounded-xl"
+    >
+      <div class="px-6 py-4">
+        <label class="block text-sm font-semibold text-gray-700 mb-2">
+          <i class="pi pi-file-edit mr-2 text-blue-600"></i> Description
+        </label>
+        <input
+          (keyup.enter)="postToSplitwise()"
+          [(ngModel)]="expenseDescription"
+          class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+          pInputText
+          placeholder="Enter expense description (e.g., Dinner at restaurant)"
+          type="text"
+        />
+        <small class="text-gray-500 mt-1 block">
+          This description will appear in Splitwise
+        </small>
+      </div>
+
+      <ng-template pTemplate="footer">
+        <div class="flex justify-end space-x-3 px-6 py-4">
+          <p-button
+            (onClick)="closeDescriptionDialog()"
+            [text]="true"
+            label="Cancel"
+            severity="secondary"
+          ></p-button>
+          <p-button
+            (onClick)="postToSplitwise()"
+            [disabled]="!expenseDescription.trim()"
+            icon="pi pi-send"
+            label="Post to Splitwise"
+            severity="success"
+          ></p-button>
+        </div>
+      </ng-template>
+    </p-dialog>
+
+    <!-- Non-Group Member Shares Dialog -->
+    <p-dialog
+      [(visible)]="showNonGroupMemberSharesDialog"
+      [draggable]="false"
+      [modal]="true"
+      [resizable]="false"
+      [style]="{ width: '90vw', maxWidth: '500px' }"
+      header="ℹ️ Non-Group Member Shares"
+      styleClass="rounded-xl"
+    >
+      <div class="px-6 py-4">
+        <p class="text-gray-600 mb-4">
+          The following people are not in your Splitwise group. Their shares will not be posted:
+        </p>
+        <div class="space-y-2">
+          @for (share of nonGroupMemberShares; track share.name) {
+            <div class="flex justify-between items-center bg-gray-50 rounded-lg p-3">
+              <span class="font-medium text-gray-700">{{ share.name }}</span>
+              <span class="font-bold text-green-600">PKR. {{ share.amount.toFixed(2) }}</span>
+            </div>
+          }
+        </div>
+        <p class="text-sm text-gray-500 mt-4">
+          Please collect these amounts separately.
+        </p>
+      </div>
+
+      <ng-template pTemplate="footer">
+        <div class="flex justify-end px-6 py-4">
+          <p-button
+            (onClick)="closeNonGroupMemberSharesDialog()"
+            icon="pi pi-check"
+            label="Understood"
+            severity="info"
           ></p-button>
         </div>
       </ng-template>

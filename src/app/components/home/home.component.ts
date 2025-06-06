@@ -13,8 +13,10 @@ import {MultiSelectModule} from 'primeng/multiselect';
 import {DialogModule} from 'primeng/dialog';
 import {TagModule} from 'primeng/tag';
 import {InputSwitchModule} from 'primeng/inputswitch';
+import {ToastModule} from 'primeng/toast';
+import {MessageService} from 'primeng/api';
 
-import {ApiResponse, Person, SplitwiseGroup, SplitwiseMember} from '../../interfaces/person';
+import {ApiResponse, ExpenseResponse, Person, SplitwiseGroup, SplitwiseMember} from '../../interfaces/person';
 import {Message} from 'primeng/message';
 import {Router} from '@angular/router';
 
@@ -40,8 +42,10 @@ interface DropdownOption {
     DialogModule,
     TagModule,
     InputSwitchModule,
-    Message
+    Message,
+    ToastModule
   ],
+  providers: [MessageService],
   templateUrl: './home.component.html',
   styleUrl: './home.component.css'
 })
@@ -50,38 +54,55 @@ export class HomeComponent implements OnInit {
   persons: Person[] = [];
   inputPersons: Person[] = [];
   numberOfPersons: number | undefined;
+
   // UI State
   shouldShowBillCards: boolean = false;
   shouldShowPersonInputs: boolean = false;
   showManualEntry: boolean = false;
   showMultiPersonItemDialog: boolean = false;
   isPersonInputsValid: boolean = false;
+  isManualFlow: boolean = true; // Track if using manual flow
+
   // Bill Calculation
   gstPercentage: number | undefined;
   totalBill: number = 0;
   discountOnTotalBill: number | undefined;
+
   // Multi Person Item
   multiPersonItemPrice: number | undefined;
   multiPersonItemDiscount: number | undefined;
   selectedPersonsForItem: Person[] = [];
   shouldDivideAmongSelected: boolean = true;
+
   // Splitwise Integration
   isAuthenticated: boolean = false;
   splitwiseGroups: SplitwiseGroup[] = [];
   selectedGroup: SplitwiseGroup | null = null;
   selectedGroupMembers: SplitwiseMember[] = [];
   selectedPayer: SplitwiseMember | null = null;
+
   // Dropdown Options
   groupOptions: DropdownOption[] = [];
   memberOptions: DropdownOption[] = [];
   payerOptions: DropdownOption[] = [];
   personOptions: DropdownOption[] = [];
+
+  // New properties for non-group members
+  showAddNonGroupMemberDialog: boolean = false;
+  nonGroupMemberName: string = '';
+
+  // New properties for Splitwise posting
+  showDescriptionDialog: boolean = false;
+  expenseDescription: string = '';
+  showNonGroupMemberSharesDialog: boolean = false;
+  nonGroupMemberShares: { name: string, amount: number }[] = [];
+
   protected readonly String = String;
   private readonly http = inject(HttpClient);
   private accessToken: string | null = null;
   private readonly splitwiseBaseUrl = '/api';
 
-  constructor(private router: Router) {
+  constructor(private router: Router, private messageService: MessageService) {
   }
 
   ngOnInit(): void {
@@ -94,10 +115,17 @@ export class HomeComponent implements OnInit {
     this.selectedPayer = null;
     if (this.selectedGroup) {
       this.updateMemberOptions();
+      this.updateFlowType();
     } else {
       this.memberOptions = [];
       this.payerOptions = [];
+      this.isManualFlow = true;
     }
+  }
+
+  // Update flow type based on current state
+  updateFlowType(): void {
+    this.isManualFlow = !(this.isAuthenticated && this.selectedGroup && this.selectedGroupMembers.length > 0);
   }
 
   // Manual Entry Methods
@@ -106,6 +134,7 @@ export class HomeComponent implements OnInit {
     this.numberOfPersons = undefined;
     this.shouldShowPersonInputs = false;
     this.inputPersons = [];
+    this.isManualFlow = true; // Set manual flow when manual entry is clicked
   }
 
   closeManualEntryDialog(): void {
@@ -170,7 +199,56 @@ export class HomeComponent implements OnInit {
 
     this.shouldShowBillCards = true;
     this.shouldShowPersonInputs = false;
+    this.updateFlowType();
     this.updatePersonOptions();
+  }
+
+  // Add Non-Group Member
+  showAddNonGroupMember(): void {
+    this.showAddNonGroupMemberDialog = true;
+    this.nonGroupMemberName = '';
+  }
+
+  closeAddNonGroupMemberDialog(): void {
+    this.showAddNonGroupMemberDialog = false;
+    this.nonGroupMemberName = '';
+  }
+
+  addNonGroupMember(): void {
+    if (!this.nonGroupMemberName.trim()) {
+      return;
+    }
+
+    const capitalizedName = this.capitalizeFullName(this.nonGroupMemberName.trim());
+
+    // Check if name already exists
+    if (this.persons.some(p => p.name === capitalizedName)) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Duplicate Name',
+        detail: 'A person with this name already exists'
+      });
+      return;
+    }
+
+    const newPerson: Person = {
+      id: Date.now(),
+      name: capitalizedName,
+      totalAmount: 0,
+      listOfAmounts: [],
+      isNonGroupMember: true
+    };
+
+    this.persons.push(newPerson);
+    this.persons = this.persons.sort((a, b) => a.name.localeCompare(b.name));
+    this.updatePersonOptions();
+    this.closeAddNonGroupMemberDialog();
+
+    this.messageService.add({
+      severity: 'success',
+      summary: 'Person Added',
+      detail: `${capitalizedName} has been added to the bill`
+    });
   }
 
   // Amount Management
@@ -194,7 +272,6 @@ export class HomeComponent implements OnInit {
 
   // Multi Person Item Methods
   closeMultiPersonItemDialog(): void {
-    this.showMultiPersonItemDialog = false;
     this.multiPersonItemPrice = undefined;
     this.multiPersonItemDiscount = undefined;
     this.selectedPersonsForItem = [];
@@ -267,6 +344,127 @@ export class HomeComponent implements OnInit {
     this.totalBill = this.persons.reduce((sum, person) => sum + person.totalAmount, 0);
   }
 
+  // Post to Splitwise
+  showPostToSplitwise(): void {
+    if (!this.selectedPayer) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Payer Required',
+        detail: 'Please select who paid for this transaction'
+      });
+      return;
+    }
+
+    this.showDescriptionDialog = true;
+    this.expenseDescription = '';
+  }
+
+  closeDescriptionDialog(): void {
+    this.showDescriptionDialog = false;
+    this.expenseDescription = '';
+  }
+
+  async postToSplitwise(): Promise<void> {
+    if (!this.expenseDescription.trim()) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Description Required',
+        detail: 'Please enter a description for the expense'
+      });
+      return;
+    }
+
+    // Check for non-group members
+    const nonGroupMembers = this.persons.filter(p => p.isNonGroupMember);
+    const groupMembers = this.persons.filter(p => !p.isNonGroupMember);
+
+    // Show non-group member shares if any
+    if (nonGroupMembers.length > 0) {
+      this.nonGroupMemberShares = nonGroupMembers.map(p => ({
+        name: p.name,
+        amount: p.totalAmount
+      }));
+      this.showNonGroupMemberSharesDialog = true;
+    }
+
+    // Calculate total for group members only
+    const groupMembersTotal = groupMembers.reduce((sum, person) => sum + person.totalAmount, 0);
+
+    // Prepare expense data with flattened user parameters
+    const expenseData: any = {
+      cost: groupMembersTotal.toFixed(2),
+      description: this.expenseDescription.trim(),
+      currency_code: "PKR",
+      group_id: this.selectedGroup!.id
+    };
+
+    // Add payer
+    const payerPerson = groupMembers.find(p => p.splitwiseUserId === this.selectedPayer!.user_id || p.splitwiseUserId === this.selectedPayer!.id);
+
+    let userIndex = 0;
+
+    if (payerPerson) {
+      expenseData[`users__${userIndex}__user_id`] = payerPerson.splitwiseUserId;
+      expenseData[`users__${userIndex}__paid_share`] = groupMembersTotal.toFixed(2);
+      expenseData[`users__${userIndex}__owed_share`] = payerPerson.totalAmount.toFixed(2);
+      userIndex++;
+    }
+
+    // Add other group members
+    groupMembers.forEach(person => {
+      if (person.splitwiseUserId !== payerPerson?.splitwiseUserId) {
+        expenseData[`users__${userIndex}__user_id`] = person.splitwiseUserId;
+        expenseData[`users__${userIndex}__paid_share`] = "0.00";
+        expenseData[`users__${userIndex}__owed_share`] = person.totalAmount.toFixed(2);
+        userIndex++;
+      }
+    });
+
+    // Post to Splitwise
+    try {
+      const headers = new HttpHeaders({
+        'Authorization': `Bearer ${this.accessToken}`,
+        'Content-Type': 'application/json'
+      });
+
+      const response = await this.http.post<ExpenseResponse>(
+        `${this.splitwiseBaseUrl}/create_expense`,
+        expenseData,
+        {headers}
+      ).toPromise();
+
+      if (response && (!response.errors || Object.keys(response.errors).length === 0)) {
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Success',
+          detail: 'Expense posted to Splitwise successfully'
+        });
+
+      } else {
+        console.error('Splitwise API error:', response?.errors);
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: 'Failed to post expense to Splitwise'
+        });
+      }
+    } catch (error) {
+      console.error('Error posting to Splitwise:', error);
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Error',
+        detail: 'Failed to post expense to Splitwise'
+      });
+    }
+
+    this.closeDescriptionDialog();
+  }
+
+  closeNonGroupMemberSharesDialog(): void {
+    this.showNonGroupMemberSharesDialog = false;
+    this.nonGroupMemberShares = [];
+  }
+
   // Utility Methods
   generateAvatarUrl(userName: string): string {
     return `https://avatar.iran.liara.run/public/boy?username=${userName}`;
@@ -287,7 +485,11 @@ export class HomeComponent implements OnInit {
     this.selectedGroup = null;
     this.selectedGroupMembers = [];
     this.selectedPayer = null;
+    this.isManualFlow = true;
     this.closeMultiPersonItemDialog();
+    this.closeAddNonGroupMemberDialog();
+    this.closeDescriptionDialog();
+    this.closeNonGroupMemberSharesDialog();
   }
 
   updatePayerOptions(): void {
@@ -296,15 +498,19 @@ export class HomeComponent implements OnInit {
       return;
     }
 
-    this.payerOptions = this.selectedGroup.members.map(member => ({
-      label: `${member.first_name} ${member.last_name}`.trim(),
-      value: member,
-      email: member.email
-    }));
+    // Filter out non-group members from payer options
+    const groupMemberIds = this.selectedGroupMembers.map(m => m.id);
+    this.payerOptions = this.selectedGroup.members
+      .filter(member => groupMemberIds.includes(member.id))
+      .map(member => ({
+        label: `${member.first_name} ${member.last_name}`.trim(),
+        value: member,
+        email: member.email
+      }));
   }
 
   connectWithSpitWise() {
-      this.router.navigate(['/callback'],{ queryParams: { signin: 'true' } });
+    this.router.navigate(['/callback'], {queryParams: {signin: 'true'}});
   }
 
   // Authentication Methods
@@ -325,7 +531,7 @@ export class HomeComponent implements OnInit {
       'Content-Type': 'application/json'
     });
 
-    this.http.get<ApiResponse>(`${this.splitwiseBaseUrl}/get_groups`, { headers })
+    this.http.get<ApiResponse>(`${this.splitwiseBaseUrl}/get_groups`, {headers})
       .subscribe({
         next: (response: ApiResponse) => {
           this.splitwiseGroups = response.groups || [];
@@ -340,7 +546,7 @@ export class HomeComponent implements OnInit {
   // Dropdown Options Management
   private updateGroupOptions(): void {
     this.groupOptions = [
-      { label: 'No Group', value: null },
+      {label: 'No Group', value: null},
       ...this.splitwiseGroups.map(group => ({
         label: group.name,
         value: group,

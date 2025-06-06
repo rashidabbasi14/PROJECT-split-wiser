@@ -5,6 +5,7 @@ export interface Person {
   listOfAmounts: Amount[];
   splitwiseMember?: SplitwiseMember;
   splitwiseUserId?: number;
+  isNonGroupMember?: boolean; // Flag to identify non-group members
 }
 
 export interface Amount {
@@ -34,4 +35,9 @@ export interface TokenResponse {
   access_token: string;
   token_type: string;
   expires_in?: number;
+}
+
+export interface ExpenseResponse {
+  expenses: any[];
+  errors: any;
 }
