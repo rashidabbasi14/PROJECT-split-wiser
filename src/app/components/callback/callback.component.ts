@@ -1,8 +1,9 @@
-
-import { Component, OnInit } from '@angular/core';
-import { Router } from '@angular/router';
-import { CommonModule } from '@angular/common';
-import { CardModule } from 'primeng/card';
+import {Component, OnInit} from '@angular/core';
+import {Router} from '@angular/router';
+import {CommonModule} from '@angular/common';
+import {CardModule} from 'primeng/card';
+import {TokenResponse} from '../../interfaces/person';
+import {HttpClient} from '@angular/common/http';
 
 @Component({
   selector: 'app-callback',
@@ -32,30 +33,67 @@ import { CardModule } from 'primeng/card';
   `,
 })
 export class CallbackComponent implements OnInit {
-  constructor(private router: Router) {}
+  private readonly clientId: string = 'sBrfNYZ0Tc12BWwbkeIG91tAoSoC1gznJEgcCBni';
+  private readonly clientSecret: string = 'EF1GfWeSkCGQoKXN31nAgiUIb327aUkxlOUDP8xw';
 
-  ngOnInit(): void {
-    this.handleCallback();
+  constructor(private router: Router,
+              private http: HttpClient) {
   }
 
-  private handleCallback(): void {
+  ngOnInit(): void {
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
     const error = urlParams.get('error');
+    const sigin = urlParams.get('signin');
+    if (code) {
+      this.handleCallback(code, error);
+    } else if (sigin) {
+      this.startOAuthFlow();
+    }
+  }
 
+  private startOAuthFlow(): void {
+    const redirectUri = encodeURIComponent(`${window.location.origin}/callback`);
+    window.location.href = `https://secure.splitwise.com/oauth/authorize?client_id=${this.clientId}&response_type=code&redirect_uri=${redirectUri}`;
+  }
+
+  private exchangeCodeForAccessToken(code: string): void {
+    const tokenUrl = '/oauth/token';
+    const redirectUri = `${window.location.origin}/callback`;
+
+    const body = new URLSearchParams({
+      client_id: this.clientId,
+      client_secret: this.clientSecret,
+      code: code,
+      grant_type: 'authorization_code',
+      redirect_uri: redirectUri
+    });
+
+    this.http.post<TokenResponse>(tokenUrl, body.toString(), {
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'}
+    }).subscribe({
+      next: (response: TokenResponse) => {
+        localStorage.setItem('splitwise_access_token', response.access_token!);
+        // Redirect back to home page
+        this.router.navigate(['/']);
+      },
+      error: (error) => {
+        console.error('Token exchange failed:', error);
+        alert('Authentication failed during token exchange');
+        localStorage.removeItem('splitwise_access_token');
+      }
+    });
+  }
+
+  private handleCallback(code: string, error: string | null): void {
     if (error) {
       console.error('OAuth error:', error);
       alert('Authentication failed: ' + error);
       this.router.navigate(['/']);
       return;
     }
-
     if (code) {
-      // Store the auth code for the main component to process
-      localStorage.setItem('splitwise_auth_code', code);
-
-      // Redirect back to home page
-      this.router.navigate(['/']);
+      this.exchangeCodeForAccessToken(code);
     } else {
       console.error('No authorization code received');
       alert('Authentication failed: No authorization code received');

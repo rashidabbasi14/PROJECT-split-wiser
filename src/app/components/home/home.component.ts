@@ -14,8 +14,9 @@ import {DialogModule} from 'primeng/dialog';
 import {TagModule} from 'primeng/tag';
 import {InputSwitchModule} from 'primeng/inputswitch';
 
-import {ApiResponse, Person, SplitwiseGroup, SplitwiseMember, TokenResponse} from '../../interfaces/person';
+import {ApiResponse, Person, SplitwiseGroup, SplitwiseMember} from '../../interfaces/person';
 import {Message} from 'primeng/message';
+import {Router} from '@angular/router';
 
 interface DropdownOption {
   label: string;
@@ -77,31 +78,14 @@ export class HomeComponent implements OnInit {
   personOptions: DropdownOption[] = [];
   protected readonly String = String;
   private readonly http = inject(HttpClient);
-  private readonly clientId: string = 'sBrfNYZ0Tc12BWwbkeIG91tAoSoC1gznJEgcCBni';
-  private readonly clientSecret: string = 'EF1GfWeSkCGQoKXN31nAgiUIb327aUkxlOUDP8xw';
   private accessToken: string | null = null;
   private readonly splitwiseBaseUrl = '/api';
 
-  ngOnInit(): void {
-    this.checkAuthenticationStatus();
+  constructor(private router: Router) {
   }
 
-  authenticateWithSplitwise(): void {
-    const storedToken = localStorage.getItem('splitwise_access_token');
-    if (storedToken) {
-      this.accessToken = storedToken;
-      this.isAuthenticated = true;
-      this.fetchSplitwiseGroups();
-      return;
-    }
-
-    const authCode = localStorage.getItem('splitwise_auth_code');
-    if (authCode) {
-      this.exchangeCodeForAccessToken(authCode);
-      return;
-    }
-
-    this.startOAuthFlow();
+  ngOnInit(): void {
+    this.checkAuthenticationStatus();
   }
 
   // Group Selection Handlers
@@ -218,7 +202,7 @@ export class HomeComponent implements OnInit {
   }
 
   addMultiPersonItem(): void {
-    if (!this.multiPersonItemPrice || this.multiPersonItemPrice <= 0 || !this.selectedPersonsForItem?.length) {
+    if (!this.multiPersonItemPrice || this.multiPersonItemPrice <= 0 || !this.selectedPersonsForItem.length) {
       return;
     }
 
@@ -319,6 +303,10 @@ export class HomeComponent implements OnInit {
     }));
   }
 
+  connectWithSpitWise() {
+      this.router.navigate(['/callback'],{ queryParams: { signin: 'true' } });
+  }
+
   // Authentication Methods
   private checkAuthenticationStatus(): void {
     const storedToken = localStorage.getItem('splitwise_access_token');
@@ -327,42 +315,6 @@ export class HomeComponent implements OnInit {
       this.isAuthenticated = true;
       this.fetchSplitwiseGroups();
     }
-  }
-
-  private startOAuthFlow(): void {
-    const redirectUri = encodeURIComponent(`${window.location.origin}/callback`);
-    window.location.href = `https://secure.splitwise.com/oauth/authorize?client_id=${this.clientId}&response_type=code&redirect_uri=${redirectUri}`;
-  }
-
-  private exchangeCodeForAccessToken(code: string): void {
-    const tokenUrl = '/oauth/token';
-    const redirectUri = `${window.location.origin}/callback`;
-
-    const body = new URLSearchParams({
-      client_id: this.clientId,
-      client_secret: this.clientSecret,
-      code: code,
-      grant_type: 'authorization_code',
-      redirect_uri: redirectUri
-    });
-
-    this.http.post<TokenResponse>(tokenUrl, body.toString(), {
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-    }).subscribe({
-      next: (response: TokenResponse) => {
-        this.accessToken = response.access_token;
-        localStorage.setItem('splitwise_access_token', this.accessToken!);
-        localStorage.removeItem('splitwise_auth_code');
-        this.isAuthenticated = true;
-        this.fetchSplitwiseGroups();
-      },
-      error: (error) => {
-        console.error('Token exchange failed:', error);
-        alert('Authentication failed during token exchange');
-        localStorage.removeItem('splitwise_auth_code');
-        localStorage.removeItem('splitwise_access_token');
-      }
-    });
   }
 
   private fetchSplitwiseGroups(): void {
