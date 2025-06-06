@@ -1,29 +1,61 @@
-<nav class="border-gray-200 bg-gray-700">
-  <div class="mx-auto flex max-w-screen-xl flex-wrap items-center justify-between p-4">
-    <a class="flex items-center font-extrabold text-cyan-500 space-x-3 rtl:space-x-reverse" routerLink="/"
-    >Split-Wiser</a>
-    <button (click)="toggleNavbar()" data-collapse-toggle="navbar-default" type="button"
-            class="inline-flex h-10 w-10 items-center justify-center rounded-lg p-2 text-sm text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200 dark:text-gray-400 md:hidden dark:hover:bg-gray-700 dark:focus:ring-gray-600"
-            aria-controls="navbar-default" aria-expanded="false">
-      <span class="sr-only">Open main menu</span>
-      <svg class="h-5 w-5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 17 14">
-        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M1 1h15M1 7h15M1 13h15"/>
-      </svg>
-    </button>
-    <div class="hidden w-full md:block md:w-auto" id="navbar-default">
-      <ul
-        class="mt-4 flex flex-col rounded-lg border bg-gray-500 p-4 font-medium rtl:space-x-reverse dark:border-gray-700 md:space-x-8 md:mt-0 md:flex-row md:border-0 md:bg-transparent md:p-0">
-        <li>
-          <a routerLink="/" routerLinkActive="md:text-cyan-500 bg-cyan-500 md:bg-transparent font-bold"
-             [routerLinkActiveOptions]="{exact:true}"
-             class="block rounded px-3 py-2 text-white md:bg-transparent md:p-0" aria-current="page">Home</a>
-        </li>
-        <li>
-          <a href="https://github.com/im-ashar" target="_blank"
-             class="block rounded px-3 py-2 text-white md:bg-transparent md:p-0" aria-current="page">About Me</a>
-        </li>
-      </ul>
+<nav class="bg-gray-800 border-b border-gray-700">
+  <div class="mx-auto max-w-7xl px-4">
+    <div class="flex justify-content-between align-items-center h-4rem">
+      <!-- Brand -->
+      <a class="flex align-items-center text-decoration-none" routerLink="/">
+        <span class="text-2xl font-bold text-cyan-400">Split-Wiser</span>
+      </a>
+
+      <!-- Mobile menu button -->
+      <p-button
+        (onClick)="toggleMobileMenu()"
+        [text]="true"
+        class="md:hidden"
+        icon="pi pi-bars"
+        severity="secondary">
+      </p-button>
+
+      <!-- Desktop Navigation -->
+      <div class="hidden md:flex align-items-center gap-4">
+        <a
+          [routerLinkActiveOptions]="{exact: true}"
+          class="nav-link"
+          routerLink="/"
+          routerLinkActive="active-link">
+          <i class="pi pi-home mr-2"></i>
+          Home
+        </a>
+        <a
+          class="nav-link"
+          href="https://github.com/im-ashar"
+          target="_blank">
+          <i class="pi pi-github mr-2"></i>
+          About Me
+        </a>
+      </div>
+    </div>
+
+    <!-- Mobile Navigation -->
+    <div [class.hidden]="!isMobileMenuOpen" class="md:hidden">
+      <div class="flex flex-column gap-2 py-3 border-top-1 border-gray-600">
+        <a
+          (click)="closeMobileMenu()"
+          [routerLinkActiveOptions]="{exact: true}"
+          class="nav-link-mobile"
+          routerLink="/"
+          routerLinkActive="active-link">
+          <i class="pi pi-home mr-2"></i>
+          Home
+        </a>
+        <a
+          (click)="closeMobileMenu()"
+          class="nav-link-mobile"
+          href="https://github.com/im-ashar"
+          target="_blank">
+          <i class="pi pi-github mr-2"></i>
+          About Me
+        </a>
+      </div>
     </div>
   </div>
 </nav>

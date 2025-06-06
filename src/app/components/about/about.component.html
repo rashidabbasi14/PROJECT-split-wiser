@@ -1,1 +1,80 @@
-<p>about works!</p>
+// about.component.html
+<div class="flex justify-content-center">
+  <p-card class="w-full max-w-4xl shadow-2 my-4">
+    <ng-template pTemplate="header">
+      <div class="p-4 text-center">
+        <h1 class="text-3xl font-bold text-primary mb-2">About Split-Wiser</h1>
+        <p class="text-lg text-color-secondary">Smart bill splitting made simple</p>
+      </div>
+    </ng-template>
+
+    <ng-template pTemplate="content">
+      <div class="grid">
+        <div class="col-12 md:col-6">
+          <h3 class="text-xl font-semibold mb-3">Features</h3>
+          <ul class="list-none pl-0">
+            <li class="flex align-items-center mb-2">
+              <i class="pi pi-check-circle text-green-500 mr-2"></i>
+              <span>Splitwise Integration</span>
+            </li>
+            <li class="flex align-items-center mb-2">
+              <i class="pi pi-check-circle text-green-500 mr-2"></i>
+              <span>Manual Bill Entry</span>
+            </li>
+            <li class="flex align-items-center mb-2">
+              <i class="pi pi-check-circle text-green-500 mr-2"></i>
+              <span>GST Calculation</span>
+            </li>
+            <li class="flex align-items-center mb-2">
+              <i class="pi pi-check-circle text-green-500 mr-2"></i>
+              <span>Discount Management</span>
+            </li>
+            <li class="flex align-items-center mb-2">
+              <i class="pi pi-check-circle text-green-500 mr-2"></i>
+              <span>Multi-Person Items</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="col-12 md:col-6">
+          <h3 class="text-xl font-semibold mb-3">How It Works</h3>
+          <div class="flex flex-column gap-3">
+            <div class="flex align-items-start gap-2">
+              <p-tag class="flex-shrink-0" severity="info" value="1"></p-tag>
+              <span>Connect your Splitwise account or enter names manually</span>
+            </div>
+            <div class="flex align-items-start gap-2">
+              <p-tag class="flex-shrink-0" severity="info" value="2"></p-tag>
+              <span>Add individual amounts or multi-person items</span>
+            </div>
+            <div class="flex align-items-start gap-2">
+              <p-tag class="flex-shrink-0" severity="info" value="3"></p-tag>
+              <span>Apply GST and discounts automatically</span>
+            </div>
+            <div class="flex align-items-start gap-2">
+              <p-tag class="flex-shrink-0" severity="info" value="4"></p-tag>
+              <span>View calculated amounts for each person</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-6 p-4 bg-primary-50 border-round-lg">
+        <h3 class="text-lg font-semibold mb-2">About the Developer</h3>
+        <p class="text-color-secondary mb-3">
+          Split-Wiser is developed with modern web technologies to make bill splitting easier and more accurate.
+          Built with Angular and PrimeNG for a smooth user experience.
+        </p>
+        <div class="flex gap-2">
+          <p-button
+            (onClick)="openGithub()"
+            [outlined]="true"
+            icon="pi pi-github"
+            label="GitHub Profile"
+            severity="info">
+          </p-button>
+        </div>
+      </div>
+    </ng-template>
+  </p-card>
+</div>

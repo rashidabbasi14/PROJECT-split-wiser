@@ -1,0 +1,17 @@
+{
+  "/oauth/*": {
+    "target": "https://secure.splitwise.com",
+    "secure": true,
+    "changeOrigin": true,
+    "logLevel": "debug"
+  },
+  "/api/*": {
+    "target": "https://secure.splitwise.com/api/v3.0",
+    "secure": true,
+    "changeOrigin": true,
+    "logLevel": "debug",
+    "pathRewrite": {
+      "^/api": ""
+    }
+  }
+}
