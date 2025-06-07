@@ -33,8 +33,8 @@ import {HttpClient} from '@angular/common/http';
   `,
 })
 export class CallbackComponent implements OnInit {
-  private readonly clientId: string = 'sBrfNYZ0Tc12BWwbkeIG91tAoSoC1gznJEgcCBni';
-  private readonly clientSecret: string = 'EF1GfWeSkCGQoKXN31nAgiUIb327aUkxlOUDP8xw';
+  private readonly clientId: string = import.meta.env.NG_APP_SPLITWISE_CLIENT_ID ?? 'your-client-id';
+  private readonly clientSecret: string = import.meta.env.NG_APP_SPLITWISE_CLIENT_SECRET ?? 'your-client-secret';
 
   constructor(private router: Router,
               private http: HttpClient) {
