@@ -58,7 +58,7 @@ export class CallbackComponent implements OnInit {
   }
 
   private exchangeCodeForAccessToken(code: string): void {
-    const tokenUrl = '/oauth/token';
+    const tokenUrl = 'https://secure.splitwise.com/oauth/token';
     const redirectUri = `${window.location.origin}/callback`;
 
     const body = new URLSearchParams({
