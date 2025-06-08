@@ -100,7 +100,7 @@ export class HomeComponent implements OnInit {
   protected readonly String = String;
   private readonly http = inject(HttpClient);
   private accessToken: string | null = null;
-  private readonly splitwiseBaseUrl = '/api';
+  private readonly splitwiseBaseUrl = this.getApiBaseUrl();
 
   constructor(private router: Router, private messageService: MessageService) {
   }
@@ -428,7 +428,7 @@ export class HomeComponent implements OnInit {
       });
 
       const response = await this.http.post<ExpenseResponse>(
-        `${this.splitwiseBaseUrl}/create_expense`,
+        `${this.splitwiseBaseUrl}/create-expense`,
         expenseData,
         {headers}
       ).toPromise();
@@ -534,6 +534,22 @@ export class HomeComponent implements OnInit {
     this.router.navigate(["/"]);
   }
 
+  private getApiBaseUrl(): string {
+    // Check if running on Netlify Dev (port 8888) or production
+    const isNetlifyDev = window.location.port === '8888';
+    const isProduction = window.location.hostname !== 'localhost';
+
+    if (isNetlifyDev || isProduction) {
+      // Use Netlify Functions
+      return '/.netlify/functions';
+    } else {
+      // Fallback for local development with ng serve
+      // This won't work for API calls but prevents immediate errors
+      console.warn('Running without Netlify Dev. API calls will fail. Use "netlify dev" instead of "ng serve"');
+      return '/.netlify/functions';
+    }
+  }
+
   // Authentication Methods
   private checkAuthenticationStatus(): void {
     const storedToken = localStorage.getItem('splitwise_access_token');
@@ -552,7 +568,8 @@ export class HomeComponent implements OnInit {
       'Content-Type': 'application/json'
     });
 
-    this.http.get<ApiResponse>(`${this.splitwiseBaseUrl}/get_groups`, {headers})
+    // CHANGED: /api/get_groups to /.netlify/functions/get-groups
+    this.http.get<ApiResponse>(`${this.splitwiseBaseUrl}/get-groups`, {headers})
       .subscribe({
         next: (response: ApiResponse) => {
           this.splitwiseGroups = response.groups || [];
