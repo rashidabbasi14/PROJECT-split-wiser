@@ -13,7 +13,7 @@ import {HttpClient} from '@angular/common/http';
     CardModule
   ],
   template: `
-    <div class="flex justify-content-center align-items-center min-h-screen">
+    <div class="flex justify-center items-center min-h-screen flex-col">
       <p-card class="w-full max-w-md">
         <ng-template pTemplate="header">
           <div class="text-center p-4">
@@ -39,22 +39,45 @@ export class CallbackComponent implements OnInit {
   constructor(private router: Router,
               private http: HttpClient) {
   }
-
   ngOnInit(): void {
-    const urlParams = new URLSearchParams(window.location.search);
-    const code = urlParams.get('code');
-    const error = urlParams.get('error');
-    const sigin = urlParams.get('signin');
-    if (code) {
-      this.handleCallback(code, error);
-    } else if (sigin) {
-      this.startOAuthFlow();
+    // look for access_token in the hash, not a ?code=…
+    const hash = window.location.hash.substring(1);
+    const params = new URLSearchParams(hash);
+    const accessToken = params.get('access_token');
+    const error = params.get('error');
+    const sigin = this.isSigninQueryParamAvailable();
+    if (error) {
+      alert('Authentication failed: ' + error);
+      this.router.navigate(['/']);
+      return;
     }
+    if (accessToken) {
+      localStorage.setItem('splitwise_access_token', accessToken);
+      this.router.navigate(['/']);
+      return;
+    } else if (sigin) {
+      // if there is a signin parameter, start the OAuth flow
+      this.startOAuthFlow();
+      return;
+    }
+    alert("Authentication failed: No access token received");
+    this.router.navigate(['/']);
+    return;
+  }
+
+  private isSigninQueryParamAvailable(): boolean {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.has('signin');
   }
 
   private startOAuthFlow(): void {
     const redirectUri = encodeURIComponent(`${window.location.origin}/callback`);
-    window.location.href = `https://secure.splitwise.com/oauth/authorize?client_id=${this.clientId}&response_type=code&redirect_uri=${redirectUri}`;
+    // 🚩 change response_type to “token”
+    window.location.href =
+      `https://secure.splitwise.com/oauth/authorize` +
+      `?client_id=${this.clientId}` +
+      `&response_type=token` +
+      `&redirect_uri=${redirectUri}`;
   }
 
   private exchangeCodeForAccessToken(code: string): void {
@@ -83,21 +106,5 @@ export class CallbackComponent implements OnInit {
         localStorage.removeItem('splitwise_access_token');
       }
     });
-  }
-
-  private handleCallback(code: string, error: string | null): void {
-    if (error) {
-      console.error('OAuth error:', error);
-      alert('Authentication failed: ' + error);
-      this.router.navigate(['/']);
-      return;
-    }
-    if (code) {
-      this.exchangeCodeForAccessToken(code);
-    } else {
-      console.error('No authorization code received');
-      alert('Authentication failed: No authorization code received');
-      this.router.navigate(['/']);
-    }
   }
 }

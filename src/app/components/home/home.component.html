@@ -7,7 +7,7 @@
     <p-card class="overflow-hidden rounded-2xl shadow-lg">
       <!-- Header -->
       <ng-template pTemplate="header">
-        <div class="bg-gradient-to-r from-blue-600 to-purple-600 px-8 py-6">
+        <div class="flex items-center justify-between bg-gradient-to-r from-blue-600 to-purple-600 px-8 py-6">
           <div class="flex items-center space-x-4">
             <i class="pi pi-users text-4xl text-white"></i>
             <div class="space-y-1">
@@ -15,6 +15,18 @@
               <p class="text-blue-100 text-base">Smart bill splitting made simple</p>
             </div>
           </div>
+          @if (isAuthenticated) {
+            <div>
+              <p-button
+                (onClick)="disconnectFromSplitwise()"
+                [label]="'Disconnect Splitwise'"
+                [raised]="true"
+                class="px-6 py-2"
+                icon="pi pi-times-circle"
+                severity="danger"
+              ></p-button>
+            </div>
+          }
         </div>
       </ng-template>
 
@@ -42,7 +54,7 @@
               ></p-dropdown>
             </div>
           } @else {
-            <p-message size="large"  icon="pi pi-link">Please Connect Your Splitwise Or Choose Manual Entry</p-message>
+            <p-message size="large" icon="pi pi-link">Please Connect Your Splitwise Or Choose Manual Entry</p-message>
           }
 
           <!-- 2) Select Members (only if a group is chosen) -->
@@ -102,14 +114,14 @@
             severity="secondary"
           ></p-button>
 
-          <div class="flex items-center space-x-4">
+          <div class="flex items-center ">
             @if (!isAuthenticated) {
               <p-button
                 label="Connect Splitwise"
                 icon="pi pi-link"
                 severity="info"
                 [raised]="true"
-                class="px-6 py-2"
+                class="px-2 py-2"
                 (onClick)="connectWithSpitWise()"
               ></p-button>
             }

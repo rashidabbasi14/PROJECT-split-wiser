@@ -513,6 +513,27 @@ export class HomeComponent implements OnInit {
     this.router.navigate(['/callback'], {queryParams: {signin: 'true'}});
   }
 
+  disconnectFromSplitwise(): void {
+    localStorage.removeItem('splitwise_access_token');
+    this.accessToken = null;
+    this.isAuthenticated = false;
+    this.splitwiseGroups = [];
+    this.selectedGroup = null;
+    this.selectedGroupMembers = [];
+    this.selectedPayer = null;
+    this.groupOptions = [];
+    this.memberOptions = [];
+    this.payerOptions = [];
+    this.personOptions = [];
+    this.resetEverything();
+    this.messageService.add({
+      severity: 'info',
+      summary: 'Disconnected',
+      detail: 'You have been disconnected from Splitwise'
+    });
+    this.router.navigate(["/"]);
+  }
+
   // Authentication Methods
   private checkAuthenticationStatus(): void {
     const storedToken = localStorage.getItem('splitwise_access_token');
