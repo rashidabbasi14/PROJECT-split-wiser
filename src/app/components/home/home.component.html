@@ -653,7 +653,8 @@
           ></p-button>
           <p-button
             (onClick)="postToSplitwise()"
-            [disabled]="!expenseDescription.trim()"
+            [disabled]="!expenseDescription.trim() || this.isLoading"
+            [loading]="this.isLoading"
             icon="pi pi-send"
             label="Post to Splitwise"
             severity="success"

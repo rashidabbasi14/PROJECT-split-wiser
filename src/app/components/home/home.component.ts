@@ -97,6 +97,8 @@ export class HomeComponent implements OnInit {
   showNonGroupMemberSharesDialog: boolean = false;
   nonGroupMemberShares: { name: string, amount: number }[] = [];
 
+  isLoading: boolean = false;
+
   protected readonly String = String;
   private readonly http = inject(HttpClient);
   private accessToken: string | null = null;
@@ -420,6 +422,7 @@ export class HomeComponent implements OnInit {
       }
     });
 
+    this.isLoading = true;
     // Post to Splitwise
     try {
       const headers = new HttpHeaders({
@@ -456,7 +459,7 @@ export class HomeComponent implements OnInit {
         detail: 'Failed to post expense to Splitwise'
       });
     }
-
+    this.isLoading = false;
     this.closeDescriptionDialog();
   }
 
@@ -486,6 +489,7 @@ export class HomeComponent implements OnInit {
     this.selectedGroupMembers = [];
     this.selectedPayer = null;
     this.isManualFlow = true;
+    this.isLoading = false;
     this.closeMultiPersonItemDialog();
     this.closeAddNonGroupMemberDialog();
     this.closeDescriptionDialog();
@@ -525,6 +529,7 @@ export class HomeComponent implements OnInit {
     this.memberOptions = [];
     this.payerOptions = [];
     this.personOptions = [];
+    this.isLoading = false;
     this.resetEverything();
     this.messageService.add({
       severity: 'info',
