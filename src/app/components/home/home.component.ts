@@ -376,11 +376,10 @@ export class HomeComponent implements OnInit {
       return;
     }
 
-    // Check for non-group members
+    // --- (Non-group member logic remains the same) ---
     const nonGroupMembers = this.persons.filter(p => p.isNonGroupMember);
     const groupMembers = this.persons.filter(p => !p.isNonGroupMember);
 
-    // Show non-group member shares if any
     if (nonGroupMembers.length > 0) {
       this.nonGroupMemberShares = nonGroupMembers.map(p => ({
         name: p.name,
@@ -389,41 +388,69 @@ export class HomeComponent implements OnInit {
       this.showNonGroupMemberSharesDialog = true;
     }
 
-    // Calculate total for group members only
-    const groupMembersTotal = groupMembers.reduce((sum, person) => sum + person.totalAmount, 0);
+    // --- NEW LOGIC STARTS HERE ---
 
-    // Prepare expense data with flattened user parameters
+    this.isLoading = true;
+
+    // 1. Calculate the final, rounded total cost for group members.
+    // Use Math.round for better precision than toFixed.
+    const groupMembersRawTotal = groupMembers.reduce((sum, person) => sum + person.totalAmount, 0);
+    const totalCost = Math.round(groupMembersRawTotal * 100) / 100;
+
+    // 2. Prepare an array to hold user data. This is easier to manage.
+    const usersForApi = [];
+    let totalOwedShares = 0;
+
+    // 3. Find the payer and prepare their initial data.
+    const payerPerson = groupMembers.find(p => p.splitwiseUserId === this.selectedPayer!.user_id || p.splitwiseUserId === this.selectedPayer!.id);
+
+    if (!payerPerson) {
+      console.error("Payer not found in group members list!");
+      this.messageService.add({severity: 'error', summary: 'Error', detail: 'Selected payer is not part of the bill.'});
+      this.isLoading = false;
+      return;
+    }
+
+    // 4. Calculate each person's owed share, round it, and add to the array.
+    for (const person of groupMembers) {
+      // Round each person's share to the nearest cent.
+      const owedShare = Math.round(person.totalAmount * 100) / 100;
+      totalOwedShares += owedShare;
+
+      usersForApi.push({
+        user_id: person.splitwiseUserId,
+        paid_share: (person.splitwiseUserId === payerPerson.splitwiseUserId) ? totalCost.toFixed(2) : "0.00",
+        owed_share: owedShare.toFixed(2)
+      });
+    }
+
+    // 5. Calculate the rounding discrepancy (the "last penny" problem).
+    const discrepancy = totalCost - totalOwedShares;
+
+    // 6. If there's a discrepancy, add it to the payer's owed share to make it all balance.
+    if (Math.abs(discrepancy) > 0.001) { // Use a small tolerance for float comparison
+      const payerIndex = usersForApi.findIndex(u => u.user_id === payerPerson.splitwiseUserId);
+      if (payerIndex !== -1) {
+        const payerOwedShare = parseFloat(usersForApi[payerIndex].owed_share);
+        usersForApi[payerIndex].owed_share = (payerOwedShare + discrepancy).toFixed(2);
+      }
+    }
+
+    // 7. Build the final expenseData object from the corrected user array.
     const expenseData: any = {
-      cost: groupMembersTotal.toFixed(2),
+      cost: totalCost.toFixed(2),
       description: this.expenseDescription.trim(),
       currency_code: "PKR",
       group_id: this.selectedGroup!.id
     };
 
-    // Add payer
-    const payerPerson = groupMembers.find(p => p.splitwiseUserId === this.selectedPayer!.user_id || p.splitwiseUserId === this.selectedPayer!.id);
-
-    let userIndex = 0;
-
-    if (payerPerson) {
-      expenseData[`users__${userIndex}__user_id`] = payerPerson.splitwiseUserId;
-      expenseData[`users__${userIndex}__paid_share`] = groupMembersTotal.toFixed(2);
-      expenseData[`users__${userIndex}__owed_share`] = payerPerson.totalAmount.toFixed(2);
-      userIndex++;
-    }
-
-    // Add other group members
-    groupMembers.forEach(person => {
-      if (person.splitwiseUserId !== payerPerson?.splitwiseUserId) {
-        expenseData[`users__${userIndex}__user_id`] = person.splitwiseUserId;
-        expenseData[`users__${userIndex}__paid_share`] = "0.00";
-        expenseData[`users__${userIndex}__owed_share`] = person.totalAmount.toFixed(2);
-        userIndex++;
-      }
+    usersForApi.forEach((user, index) => {
+      expenseData[`users__${index}__user_id`] = user.user_id;
+      expenseData[`users__${index}__paid_share`] = user.paid_share;
+      expenseData[`users__${index}__owed_share`] = user.owed_share;
     });
 
-    this.isLoading = true;
-    // Post to Splitwise
+    // --- (Rest of the try/catch block remains the same) ---
     try {
       const headers = new HttpHeaders({
         'Authorization': `Bearer ${this.accessToken}`,
@@ -442,13 +469,13 @@ export class HomeComponent implements OnInit {
           summary: 'Success',
           detail: 'Expense posted to Splitwise successfully'
         });
-
       } else {
+        const errorDetail = response?.errors?.base?.[0] || 'Failed to post expense to Splitwise';
         console.error('Splitwise API error:', response?.errors);
         this.messageService.add({
           severity: 'error',
-          summary: 'Error',
-          detail: 'Failed to post expense to Splitwise'
+          summary: 'Splitwise Error',
+          detail: errorDetail
         });
       }
     } catch (error) {
@@ -456,9 +483,10 @@ export class HomeComponent implements OnInit {
       this.messageService.add({
         severity: 'error',
         summary: 'Error',
-        detail: 'Failed to post expense to Splitwise'
+        detail: 'An unknown error occurred while posting to Splitwise.'
       });
     }
+
     this.isLoading = false;
     this.closeDescriptionDialog();
   }
