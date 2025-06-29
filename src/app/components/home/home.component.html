@@ -519,6 +519,7 @@
             </label>
             <p-multiSelect
               [(ngModel)]="selectedPersonsForItem"
+              [appendTo]="'body'"
               [options]="personOptions"
               [showToggleAll]="personOptions.length > 1"
               class="w-full rounded-lg border border-gray-300 focus:border-blue-500"
