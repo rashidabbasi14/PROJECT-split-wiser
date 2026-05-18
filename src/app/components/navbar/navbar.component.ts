@@ -1,20 +1,28 @@
-import {Component, ElementRef, Renderer2} from '@angular/core';
-import {RouterLink, RouterLinkActive} from '@angular/router';
+import { Component } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { RouterLink, RouterLinkActive } from '@angular/router';
+import { ButtonModule } from 'primeng/button';
 
 @Component({
   selector: 'app-navbar',
+  standalone: true,
   imports: [
+    CommonModule,
     RouterLink,
-    RouterLinkActive
+    RouterLinkActive,
+    ButtonModule
   ],
   templateUrl: './navbar.component.html',
-  standalone: true,
   styleUrl: './navbar.component.css'
 })
 export class NavbarComponent {
-  constructor(private renderer: Renderer2, private el: ElementRef) {}
-  toggleNavbar() {
-    const mobileNavbar = this.el.nativeElement.querySelector('#navbar-default');
-    mobileNavbar.classList.toggle('hidden');
+  isMobileMenuOpen: boolean = false;
+
+  toggleMobileMenu(): void {
+    this.isMobileMenuOpen = !this.isMobileMenuOpen;
+  }
+
+  closeMobileMenu(): void {
+    this.isMobileMenuOpen = false;
   }
 }
